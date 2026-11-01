@@ -1,126 +1,69 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Verification</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verify Device</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  :root { --bg:#0b1020; --card:#131a2e; --line:#243050; --text:#e8ecf5; --muted:#93a0bd; --ok:#2fbf8a; --bad:#e5604f; --accent:#3b82f6; }
-  * { box-sizing: border-box; }
-  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
-         background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-  .card { width:100%; max-width:380px; background:var(--card); border:1px solid var(--line); border-radius:24px; padding:32px 24px; text-align:center; }
-  .icon { width:96px; height:96px; margin:0 auto 20px; border-radius:50%; border:1px solid var(--line);
-          display:flex; align-items:center; justify-content:center; font-size:44px; background:#0f1527; }
-  h1 { font-size:22px; margin:0 0 8px; }
-  p  { margin:0; color:var(--muted); font-size:15px; line-height:1.5; }
-  .note { margin-top:20px; font-size:12px; }
-  button { margin-top:24px; width:100%; padding:14px; border:0; border-radius:14px; font-size:16px; font-weight:600;
-           color:#fff; background:linear-gradient(90deg,#0a7bd1,#4f46e5); cursor:pointer; }
-  .ok .icon { border-color:var(--ok); } .bad .icon { border-color:var(--bad); }
-  .spin { animation: s 1s linear infinite; } @keyframes s { to { transform: rotate(360deg); } }
-  .hidden { display:none; }
+  body{font-family:sans-serif;text-align:center;padding:60px 20px;background:#0f172a;color:#fff}
+  #msg{font-size:18px;margin-top:20px}
 </style>
 </head>
 <body>
-<div class="card" id="card">
-  <div class="icon" id="icon"><span class="spin">⏳</span></div>
-  <h1 id="title">ভেরিফাই করা হচ্ছে...</h1>
-  <p id="msg">একটু অপেক্ষা করুন।</p>
-  <button id="btn" class="hidden">Return To Bot</button>
-  <p class="note">ডিভাইসের তথ্য শুধু একই ডিভাইসে একাধিক অ্যাকাউন্ট ঠেকাতে ব্যবহার হয়।</p>
-</div>
-
+<h2>Device Verification</h2>
+<div id="msg">Verifying, please wait...</div>
 <script>
-const tg = window.Telegram.WebApp;
-tg.ready(); tg.expand();
+const API = "https://incomebd-bot.kdcamir5.workers.dev/verify";
+const msg = (t) => (document.getElementById("msg").textContent = t);
 
-const card = document.getElementById('card');
-const icon = document.getElementById('icon');
-const title = document.getElementById('title');
-const msg = document.getElementById('msg');
-const btn = document.getElementById('btn');
-btn.onclick = () => tg.close();
-
-function show(kind, ic, t, m) {
-  card.className = 'card ' + kind;
-  icon.textContent = ic; title.textContent = t; msg.textContent = m;
-  btn.classList.remove('hidden');
+async function sha256(s) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
-
-async function sha256(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function getDeviceId() {
+function gpu() {
   try {
-    let d = localStorage.getItem('did');
-    if (!d) { d = crypto.randomUUID(); localStorage.setItem('did', d); }
-    return d;
-  } catch (e) { return null; }
+    const g = document.createElement("canvas").getContext("webgl");
+    return g.getParameter(g.getExtension("WEBGL_debug_renderer_info").UNMASKED_RENDERER_WEBGL);
+  } catch (e) { return ""; }
 }
-
-function webglInfo() {
+function canvasFp() {
   try {
-    const gl = document.createElement('canvas').getContext('webgl');
-    const ext = gl.getExtension('WEBGL_debug_renderer_info');
-    return ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) + '|' + gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'none';
-  } catch (e) { return 'none'; }
-}
-
-function canvasInfo() {
-  try {
-    const c = document.createElement('canvas'); c.width = 220; c.height = 40;
-    const x = c.getContext('2d');
-    x.textBaseline = 'top'; x.font = '16px Arial'; x.fillStyle = '#f60'; x.fillRect(10, 5, 80, 25);
-    x.fillStyle = '#069'; x.fillText('Verify 🔐 বাংলা', 4, 8);
+    const c = document.createElement("canvas");
+    const x = c.getContext("2d");
+    x.textBaseline = "top"; x.font = "14px Arial"; x.fillText("incomebd-fp", 2, 2);
     return c.toDataURL();
-  } catch (e) { return 'none'; }
-}
-
-async function fingerprint() {
-  const parts = [
-    navigator.userAgent, navigator.language, (navigator.languages || []).join(','),
-    screen.width + 'x' + screen.height, screen.colorDepth, window.devicePixelRatio,
-    Intl.DateTimeFormat().resolvedOptions().timeZone,
-    navigator.hardwareConcurrency, navigator.deviceMemory, navigator.platform, navigator.maxTouchPoints,
-    webglInfo(), canvasInfo()
-  ];
-  return sha256(parts.join('||'));
+  } catch (e) { return ""; }
 }
 
 async function run() {
-  const api = new URLSearchParams(location.search).get('api');
-  if (!api || !tg.initData) {
-    show('bad', '⚠️', 'সমস্যা হয়েছে', 'এই পেজটি বটের ভেতর থেকে খুলুন।');
-    return;
-  }
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+  if (!tg.initData) {
+  msg("No initData. platform=" + tg.platform + ", url=" + location.href);
+  return;
+}
+  const raw = [
+    screen.width, screen.height, devicePixelRatio, navigator.hardwareConcurrency,
+    navigator.platform, navigator.language,
+    Intl.DateTimeFormat().resolvedOptions().timeZone, gpu(), canvasFp(),
+  ].join("|");
+  const deviceId = await sha256(raw);
   try {
-    const res = await fetch(api.replace(/\/$/, '') + '/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData: tg.initData, fp: await fingerprint(), deviceId: getDeviceId() })
+    const r = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData: tg.initData, deviceId }),
     });
-    const data = await res.json();
-    switch (data.status) {
-      case 'ok':
-      case 'already':
-        show('ok', '✅', 'Verification Complete', 'ভেরিফিকেশন সম্পন্ন! বটে ফিরে যান।'); break;
-      case 'duplicate':
-        show('bad', '🚫', 'ডিভাইস আগে থেকেই রেজিস্টার্ড', 'এই ডিভাইসে আগেই একটি অ্যাকাউন্ট ভেরিফাই করা হয়েছে।'); break;
-      case 'not_joined':
-        show('bad', '📢', 'চ্যানেলে জয়েন করুন', 'বটে ফিরে সব চ্যানেলে জয়েন করে আবার Claim চাপুন।'); break;
-      case 'invalid':
-        show('bad', '⌛', 'সেশন শেষ', 'বটে ফিরে আবার Claim চেপে নতুন করে চেষ্টা করুন।'); break;
-      case 'no_user':
-        show('bad', '⚠️', 'আগে /start দিন', 'বটে গিয়ে /start চেপে আবার চেষ্টা করুন।'); break;
-      default:
-        show('bad', '⚠️', 'সমস্যা হয়েছে', 'কিছুক্ষণ পর আবার চেষ্টা করুন।');
+    const d = await r.json();
+    if (d.ok) {
+      msg(d.already ? "Already verified ✅" : "Verified ✅ 50 BDT added!");
+      setTimeout(() => tg.close(), 2000);
+    } else {
+      msg("❌ " + d.error);
     }
   } catch (e) {
-    show('bad', '📡', 'সার্ভারে সংযোগ হয়নি', 'ইন্টারনেট চেক করে কিছুক্ষণ পর আবার চেষ্টা করুন।');
+    msg("Network error, please try again.");
   }
 }
 run();
