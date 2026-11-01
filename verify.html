@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verify Device</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  body{font-family:sans-serif;text-align:center;padding:60px 20px;background:#0f172a;color:#fff}
+  #msg{font-size:18px;margin-top:20px}
+</style>
+</head>
+<body>
+<h2>Device Verification</h2>
+<div id="msg">Verifying, please wait...</div>
+<script>
+const API = "https://incomebd-bot.kdcamir5.workers.dev/verify";
+const msg = (t) => (document.getElementById("msg").textContent = t);
+
+async function sha256(s) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+function gpu() {
+  try {
+    const g = document.createElement("canvas").getContext("webgl");
+    return g.getParameter(g.getExtension("WEBGL_debug_renderer_info").UNMASKED_RENDERER_WEBGL);
+  } catch (e) { return ""; }
+}
+function canvasFp() {
+  try {
+    const c = document.createElement("canvas");
+    const x = c.getContext("2d");
+    x.textBaseline = "top"; x.font = "14px Arial"; x.fillText("incomebd-fp", 2, 2);
+    return c.toDataURL();
+  } catch (e) { return ""; }
+}
+
+async function run() {
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+  if (!tg.initData) { msg("Please open this page from the bot."); return; }
+  const raw = [
+    screen.width, screen.height, devicePixelRatio, navigator.hardwareConcurrency,
+    navigator.platform, navigator.language,
+    Intl.DateTimeFormat().resolvedOptions().timeZone, gpu(), canvasFp(),
+  ].join("|");
+  const deviceId = await sha256(raw);
+  try {
+    const r = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData: tg.initData, deviceId }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      msg(d.already ? "Already verified ✅" : "Verified ✅ 50 BDT added!");
+      setTimeout(() => tg.close(), 2000);
+    } else {
+      msg("❌ " + d.error);
+    }
+  } catch (e) {
+    msg("Network error, please try again.");
+  }
+}
+run();
+</script>
+</body>
+</html>
