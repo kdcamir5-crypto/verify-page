@@ -39,7 +39,10 @@ function canvasFp() {
 async function run() {
   const tg = window.Telegram.WebApp;
   tg.ready();
-  if (!tg.initData) { msg("Please open this page from the bot."); return; }
+  if (!tg.initData) {
+  msg("No initData. platform=" + tg.platform + ", url=" + location.href);
+  return;
+}
   const raw = [
     screen.width, screen.height, devicePixelRatio, navigator.hardwareConcurrency,
     navigator.platform, navigator.language,
